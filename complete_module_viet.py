@@ -114,6 +114,8 @@ if __name__=='__main__':
     MAX_LEN = args.max_len
     print("start")
     train,val,en_lang,vi_lang = train_val_load(args.max_len)
+#     train = train.sample(n=train.shape[0]//3)
+    
     
     transformed_dataset = {'train': Vietnamese(train), 'validate': Vietnamese(val)}
 
@@ -145,10 +147,10 @@ if __name__=='__main__':
         os.makedirs(args.save_dir)
         
     print("saving the models")
-    torch.save(enc,save_dir+args.model_name+"_enc")
-    torch.save(dec,save_dir+args.model_name+"_dec")
+    torch.save(enc,args.save_dir+args.model_name+"_enc")
+    torch.save(dec,args.save_dir+args.model_name+"_dec")
     
-    with open(save_dir+args.model_name+"_history",'wb') as f:
+    with open(args.save_dir+args.model_name+"_history",'wb') as f:
         pickle.dump(loss_hist,f)
         pickle.dump(acc_hist,f)
     
