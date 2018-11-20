@@ -101,7 +101,7 @@ def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type):
 
 
 def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,max_len, m_type, dataloader, en_lang,\
-                num_epochs=60, val_every = 1, train_bleu_every = 1):
+                num_epochs=60, val_every = 1, train_bleu_every = 10):
     best_score = 0
     best_bleu = 0
     loss_hist = {'train': [], 'validate': []}
@@ -143,11 +143,11 @@ def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,
             print("epoch {} {} loss = {}, time = {}".format(epoch, phase, epoch_loss,
                                                                            time.time() - start))
             if epoch%train_bleu_every ==0:
-                train_loss, train_bleu_score = validation(encoder,decoder, dataloader['validate'],loss_fun, en_lang,max_len,m_type)
+                train_loss, train_bleu_score = validation(encoder,decoder, dataloader['train'],loss_fun, en_lang,max_len,m_type)
                 bleu_hist['train'].append(train_bleu_score)
                 print("Train BLEU = ", train_bleu_score)
             if epoch%val_every == 0:
-                val_loss, val_bleu_score = validation(encoder,decoder, dataloader['train'],loss_fun, en_lang ,max_len,m_type)
+                val_loss, val_bleu_score = validation(encoder,decoder, dataloader['validate'],loss_fun, en_lang ,max_len,m_type)
                 loss_hist['validate'].append(val_loss)
                 bleu_hist['validate'].append(val_bleu_score)
                 print("validation loss = ", val_loss)
