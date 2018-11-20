@@ -23,11 +23,46 @@ import random
 import argparse
 from torch import optim
 import time
+from validation import *
 
 UNK_IDX = 2
 PAD_IDX = 3
 SOS_token = 0
 EOS_token = 1
+
+from bleu_score import BLEU_SCORE
+
+
+def convert_idx_2_sent(tensor, lang_obj):
+    word_list = []
+    for i in tensor:
+        if i.item() not in set([PAD_IDX,EOS_token,SOS_token]):
+            word_list.append(lang_obj.index2word[i.item()])
+    return (' ').join(word_list)
+
+def validation(encoder, decoder, dataloader, loss_fun, lang_en, max_len,m_type):
+    encoder.train(False)
+    decoder.train(False)
+    pred_corpus = []
+    true_corpus = []
+    running_loss = 0
+    running_total = 0
+    bl = BLEU_SCORE()
+    for data in dataloader:
+        encoder_i = data[0].cuda()
+        decoder_i = data[1].cuda()
+        bs,sl = encoder_i.size()[:2]
+        out, hidden = encode_decode(encoder,decoder,encoder_i,decoder_i,max_len,m_type)
+        loss = loss_fun(out.float(), decoder_i.long())
+        running_loss += loss.item() * bs
+        running_total += bs
+        pred = torch.max(out,dim = 1)[1]
+        for t,p in zip(data[1],pred):
+            t,p = convert_idx_2_sent(t,lang_en), convert_idx_2_sent(p,lang_en)
+            true_corpus.append(t)
+            pred_corpus.append(p)
+    score = bl.corpus_bleu(pred_corpus,[true_corpus],lowercase=True)[0]
+    return running_loss/running_total, score
 
 
 def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type):
@@ -46,10 +81,10 @@ def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type):
                 decoder_output,decoder_hidden = decoder(decoder_input,decoder_hidden,en_out)
             else:
                 decoder_output,decoder_hidden = decoder(decoder_input,decoder_hidden)
-            d_out.append(decoder_output)
+            d_out.append(decoder_output.unsqueeze(-1))
             decoder_input = data_de[:,i].view(-1,1)
         d_hid = decoder_hidden
-        d_out = torch.cat(d_out,dim=0)
+        d_out = torch.cat(d_out,dim=-1)
     else:
         d_out = []
         for i in range(max_len):
@@ -57,21 +92,24 @@ def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type):
                 decoder_output,decoder_hidden = decoder(decoder_input,decoder_hidden,en_out)
             else:
                 decoder_output, decoder_hidden = decoder(decoder_input,decoder_hidden)
-            d_out.append(decoder_output)
+            d_out.append(decoder_output.unsqueeze(-1))
             topv, topi = decoder_output.topk(1)
             decoder_input = topi.squeeze().detach().view(-1,1)
         d_hid = decoder_hidden
-        d_out = torch.cat(d_out,dim=0)
+        d_out = torch.cat(d_out,dim=-1)
     return d_out, d_hid
 
 
-def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,max_len, m_type, dataloader, num_epochs=60):
+def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,max_len, m_type, dataloader, en_lang,\
+                num_epochs=60, val_every = 1, train_bleu_every = 1):
     best_score = 0
-    best_au = 0
+    best_bleu = 0
     loss_hist = {'train': [], 'validate': []}
-    acc_hist = {'train': [], 'validate': []}
+    bleu_hist = {'train': [], 'validate': []}
+    best_encoder_wts = None
+    best_decoder_wts = None
     for epoch in range(num_epochs):
-        for ex, phase in enumerate(['train', 'validate']):
+        for ex, phase in enumerate(['train']):
             start = time.time()
             total = 0
             top1_correct = 0
@@ -91,7 +129,7 @@ def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,
                 decoder_i = data[1].cuda()
                                 
                 out, hidden = encode_decode(encoder,decoder,encoder_i,decoder_i,max_len,m_type)
-                loss = loss_fun(out.float(), decoder_i.long().view(-1))
+                loss = loss_fun(out.float(), decoder_i.long())
                 N = decoder_i.size(0)
                 running_loss += loss.item() * N
                 
@@ -100,17 +138,29 @@ def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,
                     loss.backward()
                     encoder_optimizer.step()
                     decoder_optimizer.step()
-
             epoch_loss = running_loss / total
-            epoch_acc = 0
             loss_hist[phase].append(epoch_loss)
-            acc_hist[phase].append(epoch_acc)
-            print("epoch {} {} loss = {}, accurancy = {} time = {}".format(epoch, phase, epoch_loss, epoch_acc,
+            print("epoch {} {} loss = {}, time = {}".format(epoch, phase, epoch_loss,
                                                                            time.time() - start))
-        if phase == 'validate' and epoch_acc > best_score:
-            best_score = epoch_acc
-    print("Training completed. Best accuracy is {}".format(best_score))
-    return encoder,decoder,loss_hist,acc_hist
+            if epoch%train_bleu_every ==0:
+                train_loss, train_bleu_score = validation(encoder,decoder, dataloader['validate'],loss_fun, en_lang,max_len,m_type)
+                bleu_hist['train'].append(train_bleu_score)
+                print("Train BLEU = ", train_bleu_score)
+            if epoch%val_every == 0:
+                val_loss, val_bleu_score = validation(encoder,decoder, dataloader['train'],loss_fun, en_lang ,max_len,m_type)
+                loss_hist['validate'].append(val_loss)
+                bleu_hist['validate'].append(val_bleu_score)
+                print("validation loss = ", val_loss)
+                print("validation BLEU = ", val_bleu_score)
+                if val_bleu_score > best_bleu:
+                    best_bleu = val_bleu_score
+                    best_encoder_wts = encoder.state_dict()
+                    best_decoder_wts = decoder.state_dict()
+            print('='*50)
+    encoder.load_state_dict(best_encoder_wts)
+    decoder.load_state_dict(best_decoder_wts)
+    print("Training completed. Best BLEU is {}".format(best_bleu))
+    return encoder,decoder,loss_hist,bleu_hist
 
 
 

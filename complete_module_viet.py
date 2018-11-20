@@ -24,6 +24,8 @@ import argparse
 from torch import optim
 import time
 import os
+from validation import *
+from bleu_score import BLEU_SCORE
 
 
 from models_viet import EncoderRNN, AttentionDecoderRNN, DecoderRNN
@@ -34,7 +36,7 @@ from define_training_viet import *
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--bs', type=int, default=12,
+parser.add_argument('--bs', type=int, default=32,
                     help='Batch size')
 
 parser.add_argument('--num_epochs', type=int, default=50,
@@ -46,6 +48,9 @@ parser.add_argument('--save_dir', type=str, default='./saved_files/',
 parser.add_argument('--model_name', type=str, required=True,
                     help='Name of model to be saved, required=True')
 
+parser.add_argument('--data_path', type=str, default='.',
+                    help="Path to data,  default='.' (current directory)")
+
 parser.add_argument('--model_load', type=str, default=None,
                     help='model to load for continued training. default=None')
 
@@ -55,7 +60,7 @@ parser.add_argument('--max_len', type=int, default=30,
 parser.add_argument('--hid_size', type=int, default=100,
                     help='hidden size for GRU. default=100')
 
-parser.add_argument('--lr', type=int, default=1e-4,
+parser.add_argument('--lr', type=float, default=1e-4,
                     help='Learning rate. default=1e-4')
 
 parser.add_argument('--bi', type=bool, default=True,
@@ -113,7 +118,7 @@ def vocab_collate_func(batch):
 if __name__=='__main__':
     MAX_LEN = args.max_len
     print("start")
-    train,val,en_lang,vi_lang = train_val_load(args.max_len)
+    train,val,en_lang,vi_lang = train_val_load(args.max_len, args.data_path)
 #     train = train.sample(n=train.shape[0]//3)
     
     
@@ -130,7 +135,7 @@ if __name__=='__main__':
     else:
         encoder = EncoderRNN(vi_lang.n_words,args.hid_size,args.bi).cuda()
         if args.type=="attention":
-            decoder = AttentionDecoderRNN(args.hid_size,en_lang.n_words,args.bi).cuda()
+            decoder = AttentionDecoderRNN(args.hid_size,en_lang.n_words,args.bi, MAX_LEN).cuda()
         else:
             decoder = DecoderRNN(args.hid_size,en_lang.n_words,args.bi).cuda()
      
@@ -141,7 +146,7 @@ if __name__=='__main__':
     
     print("starting the training process")
     enc, dec, loss_hist, acc_hist = train_model(encoder_optimizer, decoder_optimizer, encoder, decoder, criterion,
-                                               args.max_len, args.type, dataloader, num_epochs = args.num_epochs)
+                                               args.max_len, args.type, dataloader,en_lang, num_epochs = args.num_epochs)
     
     if not os.path.isdir(args.save_dir):
         os.makedirs(args.save_dir)

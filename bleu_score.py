@@ -4,11 +4,11 @@ from itertools import zip_longest
 import math
 
 #A sample Working Example:
-bleu_score = BLEU_SCORE()
-pred = ['My name is aakash','Im 25 years old','Im Indian by origin, and currently stay in the US']
-true = ['Aakash is my name','My age is 25 years old','Im Indian and I currently stay in US']
-bleu = bleu_score.corpus_bleu(pred,[true], lowercase=True)
-print(bleu[0])
+# bleu_score = BLEU_SCORE()
+# pred = ['My name is aakash','Im 25 years old','Im Indian by origin, and currently stay in the US']
+# true = ['Aakash is my name','My age is 25 years old','Im Indian and I currently stay in US']
+# bleu = bleu_score.corpus_bleu(pred,[true], lowercase=True)
+# print(bleu[0])
 
 class BLEU_SCORE(object):
     def __init__(self, NGRAM_ORDER = 4, DEFAULT_TOKENIZER = lambda x:x ):

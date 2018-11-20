@@ -83,17 +83,12 @@ def token2index_dataset(df,en_lang,vi_lang):
     return df
 
 
+def train_val_load(MAX_LEN, path):
+    en_train = read_dataset(path+"/iwslt-vi-en/train.tok.en")
+    en_val = read_dataset(path+"/iwslt-vi-en/dev.tok.en")
     
-
-
-
-
-def train_val_load(MAX_LEN):
-    en_train = read_dataset("./iwslt-vi-en/train.tok.en")
-    en_val = read_dataset("./iwslt-vi-en/dev.tok.en")
-    
-    vi_train = read_dataset("./iwslt-vi-en/train.tok.vi")
-    vi_val = read_dataset("./iwslt-vi-en/dev.tok.vi")
+    vi_train = read_dataset(path+"/iwslt-vi-en/train.tok.vi")
+    vi_val = read_dataset(path+"/iwslt-vi-en/dev.tok.vi")
     
     train = pd.DataFrame()
     train['en_data'] = en_train['data']

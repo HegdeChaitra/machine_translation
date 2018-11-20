@@ -49,7 +49,7 @@ class EncoderRNN(nn.Module):
     
     
 class AttentionDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size,bi):
+    def __init__(self, hidden_size, output_size,bi, MAX_LEN):
         super(AttentionDecoderRNN, self).__init__()
         self.bi = bi
         if self.bi:
