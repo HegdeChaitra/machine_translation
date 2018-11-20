@@ -140,8 +140,8 @@ if __name__=='__main__':
             decoder = DecoderRNN(args.hid_size,en_lang.n_words,args.bi).cuda()
      
     print("encoder decoder objects created")
-    encoder_optimizer = optim.SGD(encoder.parameters(), lr=args.lr)
-    decoder_optimizer = optim.SGD(decoder.parameters(), lr=args.lr)
+    encoder_optimizer = optim.Adam(encoder.parameters(), lr=args.lr)
+    decoder_optimizer = optim.Adam(decoder.parameters(), lr=args.lr)
     criterion = nn.NLLLoss()
     
     print("starting the training process")
