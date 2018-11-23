@@ -2,6 +2,7 @@ from typing import List, Iterable, Tuple
 from collections import Counter, namedtuple
 from itertools import zip_longest
 import math
+import logging
 
 #A sample Working Example:
 # bleu_score = BLEU_SCORE()
