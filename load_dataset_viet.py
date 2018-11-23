@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 from collections import Counter
-import pickle as pkl
+import pickle
 import random
 import pdb
 from torch.utils.data import DataLoader
@@ -43,7 +43,8 @@ class Lang:
         self.name = name
         self.word2index = {}
         self.word2count = {}
-        self.index2word = {0: "SOS", 1: "EOS", 2:"UKN",3:"PAD"}
+#         self.index2word = {0: "SOS", 1: "EOS", 2:"UKN",3:"PAD"}
+        self.index2word = ["SOS","EOS","UKN","PAD"]
         self.n_words = 4  # Count SOS and EOS
 
     def addSentence(self, sentence):
@@ -54,7 +55,8 @@ class Lang:
         if word not in self.word2index:
             self.word2index[word] = self.n_words
             self.word2count[word] = 1
-            self.index2word[self.n_words] = word
+#             self.index2word[self.n_words] = word
+            self.index2word.append(word)
             self.n_words += 1
         else:
             self.word2count[word] += 1
@@ -83,7 +85,7 @@ def token2index_dataset(df,en_lang,vi_lang):
     return df
 
 
-def train_val_load(MAX_LEN, path):
+def train_val_load(MAX_LEN, old_lang_obj, path):
     en_train = read_dataset(path+"/iwslt-vi-en/train.tok.en")
     en_val = read_dataset(path+"/iwslt-vi-en/dev.tok.en")
     
@@ -98,13 +100,22 @@ def train_val_load(MAX_LEN, path):
     val['en_data'] = en_val['data']
     val['vi_data'] = vi_val['data']
     
-    en_lang = Lang("en")
-    for ex in train['en_data']:
-        en_lang.addSentence(ex)
+    if old_lang_obj:
+        with open(old_lang_obj,'rb') as f:
+            en_lang = pickle.load(f)
+            vi_lang = pickle.load(f)
+    else:
+        en_lang = Lang("en")
+        for ex in train['en_data']:
+            en_lang.addSentence(ex)
     
-    vi_lang = Lang("vi")
-    for ex in train['vi_data']:
-        vi_lang.addSentence(ex)
+        vi_lang = Lang("vi")
+        for ex in train['vi_data']:
+            vi_lang.addSentence(ex)
+        
+        with open("lang_obj.pkl",'wb') as f:
+            pickle.dump(en_lang, f)
+            pickle.dump(vi_lang, f)
         
     train = split(train)
     val = split(val)
