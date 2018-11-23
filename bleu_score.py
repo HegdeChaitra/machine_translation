@@ -152,10 +152,10 @@ class BLEU_SCORE(object):
             if not (force or tokenize == 'none') and lines[0].rstrip().endswith(' .'):
                 tokenized_count += 1
 
-                if tokenized_count == 100:
-                    logging.warning('That\'s 100 lines that end in a tokenized period (\'.\')')
-                    logging.warning('It looks like you forgot to detokenize your test data, which may hurt your score.')
-                    logging.warning('If you insist your data is detokenized, or don\'t care, you can suppress this message with \'--force\'.')
+#                 if tokenized_count == 100:
+#                     logging.warning('That\'s 100 lines that end in a tokenized period (\'.\')')
+#                     logging.warning('It looks like you forgot to detokenize your test data, which may hurt your score.')
+#                     logging.warning('If you insist your data is detokenized, or don\'t care, you can suppress this message with \'--force\'.')
 
             output, *refs = [tokenize(x.rstrip()) for x in lines]
 

@@ -52,7 +52,7 @@ def validation(encoder, decoder, dataloader, loss_fun, lang_en, max_len,m_type):
         encoder_i = data[0].cuda()
         decoder_i = data[1].cuda()
         bs,sl = encoder_i.size()[:2]
-        out, hidden = encode_decode(encoder,decoder,encoder_i,decoder_i,max_len,m_type)
+        out, hidden = encode_decode(encoder,decoder,encoder_i,decoder_i,max_len,m_type, rand_num = 0)
         loss = loss_fun(out.float(), decoder_i.long())
         running_loss += loss.item() * bs
         running_total += bs
@@ -65,8 +65,8 @@ def validation(encoder, decoder, dataloader, loss_fun, lang_en, max_len,m_type):
     return running_loss/running_total, score
 
 
-def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type):
-    use_teacher_forcing = True if random.random() < 0.5 else False
+def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type, rand_num = 0.5):
+    use_teacher_forcing = True if random.random() < rand_num else False
     bss = data_en.size(0)
     en_h = encoder.initHidden(bss)
     en_out,en_hid = encoder(data_en,en_h)
@@ -142,10 +142,10 @@ def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,
             loss_hist[phase].append(epoch_loss)
             print("epoch {} {} loss = {}, time = {}".format(epoch, phase, epoch_loss,
                                                                            time.time() - start))
-            if epoch%train_bleu_every ==0:
-                train_loss, train_bleu_score = validation(encoder,decoder, dataloader['train'],loss_fun, en_lang,max_len,m_type)
-                bleu_hist['train'].append(train_bleu_score)
-                print("Train BLEU = ", train_bleu_score)
+#             if epoch%train_bleu_every ==0:
+#                 train_loss, train_bleu_score = validation(encoder,decoder, dataloader['train'],loss_fun, en_lang,max_len,m_type)
+#                 bleu_hist['train'].append(train_bleu_score)
+#                 print("Train BLEU = ", train_bleu_score)
             if epoch%val_every == 0:
                 val_loss, val_bleu_score = validation(encoder,decoder, dataloader['validate'],loss_fun, en_lang ,max_len,m_type)
                 loss_hist['validate'].append(val_loss)

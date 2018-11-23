@@ -49,7 +49,7 @@ class EncoderRNN(nn.Module):
     
     
 class AttentionDecoderRNN(nn.Module):
-    def __init__(self, hidden_size, output_size,bi, MAX_LEN):
+    def __init__(self, hidden_size, output_size,bi, MAX_LEN, attention_type = None):
         super(AttentionDecoderRNN, self).__init__()
         self.bi = bi
         if self.bi:
@@ -61,6 +61,14 @@ class AttentionDecoderRNN(nn.Module):
         self.embedding = nn.Embedding(output_size, hidden_size)
         self.dropout = nn.Dropout(p=0.1)
         self.gru = nn.GRU(hidden_size, hidden_size,batch_first=True,bidirectional=self.bi)
+        
+        self.attention_type = attention_type
+        if self.attention_type is not None:
+            self.attn = nn.Linear(self.hidden_size*2, self.hidden_size*2)
+            self.attn_drop = nn.Dropout(p = 0.1)
+            
+        else:
+            self.attn = nn.Linear(self.hidden_size * 2, MAX_LEN)
         
         self.attn = nn.Linear(self.hidden_size * self.mul, MAX_LEN)
         self.attn_combine = nn.Linear(self.hidden_size * self.mul+self.hidden_size, self.hidden_size)
@@ -74,8 +82,13 @@ class AttentionDecoderRNN(nn.Module):
         output = self.dropout(output)
 
         cat = torch.cat((output, hidden[0].unsqueeze(1)), 2)
-        att_out = F.softmax(self.attn(cat),dim=1)
-        attn_applied = torch.bmm(att_out,encoder_outputs)
+        if self.attention_type is not None:
+            att_out = self.attn_drop(self.attn(cat))
+            attn_wts = F.softmax(torch.bmm(encoder_outputs,att_out.transpose(1,2)),dim = 1)
+            attn_applied = torch.sum(encoder_outputs * attn_wts, dim = 1).unsqueeze(1)
+        else:
+            att_out = F.softmax(self.attn(cat),dim=1)
+            attn_applied = torch.bmm(att_out,encoder_outputs)
         attn_cat = torch.cat((output, attn_applied), 2)
         attn_comb = self.attn_combine(attn_cat)
         

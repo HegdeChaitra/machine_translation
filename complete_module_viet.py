@@ -55,7 +55,7 @@ parser.add_argument('--data_path', type=str, default='.',
 parser.add_argument('--model_load', type=str, default=None,
                     help='model to load for continued training. default=None')
 
-parser.add_argument('--max_len', type=int, default=30,
+parser.add_argument('--max_len', type=int, default=48,
                     help='Maximum length of input sentence to consider. default=30')
 
 parser.add_argument('--hid_size', type=int, default=100,
@@ -72,6 +72,9 @@ parser.add_argument('--lang_obj', type=str, default="lang_obj.pkl",
 
 parser.add_argument('--type', type=str, default="no_attention",
                     help='attention model or non attention model. options=["attention","no_attention"]. default="no_attention"')
+
+parser.add_argument('--att_type', type=str, default=None,
+                    help='attention type. options=["type2", None]. default=None')
 
 args = parser.parse_args()
 
@@ -139,7 +142,7 @@ if __name__=='__main__':
     else:
         encoder = EncoderRNN(vi_lang.n_words,args.hid_size,args.bi).cuda()
         if args.type=="attention":
-            decoder = AttentionDecoderRNN(args.hid_size,en_lang.n_words,args.bi, MAX_LEN).cuda()
+            decoder = AttentionDecoderRNN(args.hid_size,en_lang.n_words,args.bi, MAX_LEN, attention_type = args.att_type).cuda()
         else:
             decoder = DecoderRNN(args.hid_size,en_lang.n_words,args.bi).cuda()
      

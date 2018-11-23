@@ -49,7 +49,7 @@ parser.add_argument('--data_path', type=str, default='.',
 parser.add_argument('--model_load', type=str, required=True,
                     help='model to load for continued training. required=True')
 
-parser.add_argument('--max_len', type=int, default=30,
+parser.add_argument('--max_len', type=int, default=48,
                     help='Maximum length of input sentence to consider. default=30')
 
 parser.add_argument('--lang_obj', type=str, required=True,
