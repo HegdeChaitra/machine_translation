@@ -66,11 +66,9 @@ class AttentionDecoderRNN(nn.Module):
         if self.attention_type is not None:
             self.attn = nn.Linear(self.hidden_size*2, self.hidden_size*2)
             self.attn_drop = nn.Dropout(p = 0.1)
-            
         else:
             self.attn = nn.Linear(self.hidden_size * 2, MAX_LEN)
         
-        self.attn = nn.Linear(self.hidden_size * self.mul, MAX_LEN)
         self.attn_combine = nn.Linear(self.hidden_size * self.mul+self.hidden_size, self.hidden_size)
         
         self.out = nn.Linear(self.mul*hidden_size, output_size)
@@ -80,7 +78,6 @@ class AttentionDecoderRNN(nn.Module):
         bss = input.size(0)
         output = self.embedding(input)
         output = self.dropout(output)
-
         cat = torch.cat((output, hidden[0].unsqueeze(1)), 2)
         if self.attention_type is not None:
             att_out = self.attn_drop(self.attn(cat))
