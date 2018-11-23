@@ -15,6 +15,7 @@ import pickle
 import random
 import pdb
 from torch.utils.data import DataLoader
+import logging
 
 import unicodedata
 import string
@@ -65,6 +66,9 @@ parser.add_argument('--lr', type=float, default=1e-4,
 
 parser.add_argument('--bi', type=bool, default=True,
                     help='Use bidirectional GRUs or not. default=True')
+
+parser.add_argument('--lang_obj', type=str, default="lang_obj.pkl",
+                    help='Previously saved language objects. For the first run, lang_obj="", for 2nd onwards saved obj has to be specified. Default:lang_obj.pkl')
 
 parser.add_argument('--type', type=str, default="no_attention",
                     help='attention model or non attention model. options=["attention","no_attention"]. default="no_attention"')
@@ -118,8 +122,8 @@ def vocab_collate_func(batch):
 if __name__=='__main__':
     MAX_LEN = args.max_len
     print("start")
-    train,val,en_lang,vi_lang = train_val_load(args.max_len, args.data_path)
-#     train = train.sample(n=train.shape[0]//3)
+    train,val,en_lang,vi_lang = train_val_load(args.max_len, args.lang_obj, args.data_path)
+    train = train.sample(n=train.shape[0]//4)
     
     
     transformed_dataset = {'train': Vietnamese(train), 'validate': Vietnamese(val)}
