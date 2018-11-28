@@ -139,8 +139,8 @@ if __name__=='__main__':
     print("start")
     train,val,en_lang,vi_lang = train_val_load(args.max_len, args.lang_obj, args.data_path)
 #     train = train.sample(n=train.shape[0]//4)
-    train = train.iloc[:100]
-    val = val.iloc[:100]
+#     train = train.iloc[:100]
+#     val = val.iloc[:100]
     bs_dict = {'train':args.bs,'validate':1}
     collate_fn_dict = {'train':vocab_collate_func, 'validate':vocab_collate_func_val}
     transformed_dataset = {'train': Vietnamese(train),
