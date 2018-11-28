@@ -76,12 +76,16 @@ parser.add_argument('--type', type=str, default="no_attention",
 parser.add_argument('--att_type', type=str, default=None,
                     help='attention type. options=["type2", None]. default=None')
 
+parser.add_argument('--masked_cel', type=bool, default=True,
+                    help='Masked CEL: default=True')
+
 args = parser.parse_args()
 
 
 class Vietnamese(Dataset):
-    def __init__(self, df):
+    def __init__(self, df, val = False):
         self.df = df
+        self.val = val
         
     def __len__(self):
         return len(self.df)
@@ -90,7 +94,11 @@ class Vietnamese(Dataset):
         viet = self.df.iloc[idx]['vi_idized']
         en_len = self.df.iloc[idx]['en_len']
         vi_len = self.df.iloc[idx]['vi_len']
-        return [english,viet,en_len,vi_len]
+        if self.val:
+            en_data = self.df.iloc[idx]['en_data']
+            return [viet,english,vi_len,en_len,en_data]
+        else:
+            return [viet,english,vi_len,en_len]
     
     
 def vocab_collate_func(batch):
@@ -122,17 +130,29 @@ def vocab_collate_func(batch):
     return [torch.from_numpy(np.array(vi_data)), torch.from_numpy(np.array(en_data)),
             torch.from_numpy(np.array(vi_len)), torch.from_numpy(np.array(en_len))]
 
+def vocab_collate_func_val(batch):
+    return [torch.from_numpy(np.array(batch[0][0])).unsqueeze(0), torch.from_numpy(np.array(batch[0][1])).unsqueeze(0),
+            torch.from_numpy(np.array(batch[0][2])).unsqueeze(0), torch.from_numpy(np.array(batch[0][3])).unsqueeze(0),batch[0][4]]
+
 if __name__=='__main__':
     MAX_LEN = args.max_len
     print("start")
     train,val,en_lang,vi_lang = train_val_load(args.max_len, args.lang_obj, args.data_path)
-    train = train.sample(n=train.shape[0]//4)
-    
-    
-    transformed_dataset = {'train': Vietnamese(train), 'validate': Vietnamese(val)}
+#     train = train.sample(n=train.shape[0]//4)
+    train = train.iloc[:100]
+    val = val.iloc[:100]
+    bs_dict = {'train':args.bs,'validate':1}
+    collate_fn_dict = {'train':vocab_collate_func, 'validate':vocab_collate_func_val}
+    transformed_dataset = {'train': Vietnamese(train),
+                           'validate': Vietnamese(val, val = True)
+                                                   }
 
-    dataloader = {x: DataLoader(transformed_dataset[x], batch_size=args.bs, collate_fn = vocab_collate_func,
-                                shuffle = True, num_workers=0) for x in ['train', 'validate']}
+    dataloader = {x: DataLoader(transformed_dataset[x], batch_size=bs_dict[x], collate_fn=collate_fn_dict[x],
+                        shuffle=True, num_workers=0) for x in ['train', 'validate']}
+#     transformed_dataset = {'train': Vietnamese(train), 'validate': Vietnamese(val)}
+
+#     dataloader = {x: DataLoader(transformed_dataset[x], batch_size=args.bs, collate_fn = vocab_collate_func,
+#                                 shuffle = True, num_workers=0) for x in ['train', 'validate']}
     
     print("data loader created")
 
@@ -142,14 +162,17 @@ if __name__=='__main__':
     else:
         encoder = EncoderRNN(vi_lang.n_words,args.hid_size,args.bi).cuda()
         if args.type=="attention":
-            decoder = AttentionDecoderRNN(args.hid_size,en_lang.n_words,args.bi, MAX_LEN, attention_type = args.att_type).cuda()
+            decoder = AttentionDecoderRNN(args.hid_size,en_lang.n_words,args.bi, args.max_len, attention_type = args.att_type).cuda()
         else:
             decoder = DecoderRNN(args.hid_size,en_lang.n_words,args.bi).cuda()
      
     print("encoder decoder objects created")
     encoder_optimizer = optim.Adam(encoder.parameters(), lr=args.lr)
     decoder_optimizer = optim.Adam(decoder.parameters(), lr=args.lr)
-    criterion = nn.NLLLoss()
+    if args.masked_cel:
+        criterion = 'masked_cel'
+    else:
+        criterion = nn.NLLLoss()
     
     print("starting the training process")
     enc, dec, loss_hist, acc_hist = train_model(encoder_optimizer, decoder_optimizer, encoder, decoder, criterion,

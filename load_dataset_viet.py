@@ -49,7 +49,7 @@ class Lang:
 
     def addSentence(self, sentence):
         for word in sentence.split(' '):
-            self.addWord(word.lower())
+            self.addWord(word)
 
     def addWord(self, word):
         if word not in self.word2index:
@@ -63,8 +63,8 @@ class Lang:
             
             
 def split(df):
-    df['en_tokenized'] = df["en_data"].apply(lambda x:x.lower().split( ))
-    df['vi_tokenized'] = df['vi_data'].apply(lambda x:x.lower().split( ))
+    df['en_tokenized'] = df["en_data"].apply(lambda x:x.split( ))
+    df['vi_tokenized'] = df['vi_data'].apply(lambda x:x.split( ))
     return df
 
 
@@ -129,10 +129,10 @@ def train_val_load(MAX_LEN, old_lang_obj, path):
     val['en_len'] = val['en_idized'].apply(lambda x: len(x))
     val['vi_len'] = val['vi_idized'].apply(lambda x: len(x))
     
-    train = train[np.logical_and(train['en_len']>=2,train['vi_len']>=2)]
-    train = train[train['vi_len']<=MAX_LEN]
+#     train = train[np.logical_and(train['en_len']>=2,train['vi_len']>=2)]
+#     train = train[train['vi_len']<=MAX_LEN]
     
-    val = val[np.logical_and(val['en_len']>=2,val['vi_len']>=2)]
-    val = val[val['vi_len']<=MAX_LEN]
+#     val = val[np.logical_and(val['en_len']>=2,val['vi_len']>=2)]
+#     val = val[val['vi_len']<=MAX_LEN]
     
     return train,val,en_lang,vi_lang

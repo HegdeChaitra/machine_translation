@@ -31,13 +31,25 @@ SOS_token = 0
 EOS_token = 1
 
 from bleu_score import BLEU_SCORE
-
+from masked_cel import *
 
 def convert_idx_2_sent(tensor, lang_obj):
     word_list = []
     for i in tensor:
         if i.item() not in set([PAD_IDX,EOS_token,SOS_token]):
             word_list.append(lang_obj.index2word[i.item()])
+    return (' ').join(word_list)
+
+def convert_id_list_2_sent(list_idx, lang_obj):
+    word_list = []
+    if type(list_idx) == list:
+        for i in list_idx:
+            if i not in set([EOS_token]):
+                word_list.append(lang_obj.index2word[i])
+    else:
+        for i in list_idx:
+            if i.item() not in set([EOS_token,SOS_token,PAD_IDX]):
+                word_list.append(lang_obj.index2word[i.item()])
     return (' ').join(word_list)
 
 def validation(encoder, decoder, dataloader, loss_fun, lang_en, max_len,m_type):
@@ -53,6 +65,12 @@ def validation(encoder, decoder, dataloader, loss_fun, lang_en, max_len,m_type):
         decoder_i = data[1].cuda()
         bs,sl = encoder_i.size()[:2]
         out, hidden = encode_decode(encoder,decoder,encoder_i,decoder_i,max_len,m_type, rand_num = 0)
+#         outo = out.view(-1,lang_en.n_words)
+#         decoder_io = decoder_i.view(-1)
+#         loss = loss_fun(outo.float(), decoder_io.long())
+#         running_loss += loss.item() * bs
+#         running_total += bs
+#         pred = torch.max(out,dim = 2)[1]
         loss = loss_fun(out.float(), decoder_i.long())
         running_loss += loss.item() * bs
         running_total += bs
@@ -63,6 +81,39 @@ def validation(encoder, decoder, dataloader, loss_fun, lang_en, max_len,m_type):
             pred_corpus.append(p)
     score = bl.corpus_bleu(pred_corpus,[true_corpus],lowercase=True)[0]
     return running_loss/running_total, score
+
+def validation_new(encoder, decoder, val_dataloader, lang_en,m_type):
+    encoder.train(False)
+    decoder.train(False)
+    pred_corpus = []
+    true_corpus = []
+    running_loss = 0
+    running_total = 0
+    bl = BLEU_SCORE()
+    for data in val_dataloader:
+        encoder_i = data[0].cuda()
+        bs,sl = encoder_i.size()[:2]
+        en_h = encoder.initHidden(bs)
+        en_out,en_hid = encoder(encoder_i,en_h)
+        decoder_hidden = en_hid
+        decoder_input = torch.tensor([[SOS_token]]*bs).cuda()
+        d_out = []
+        for i in range(sl+20):
+            if m_type=="attention":
+                decoder_output,decoder_hidden = decoder(decoder_input,decoder_hidden,en_out)
+            else:
+                decoder_output,decoder_hidden = decoder(decoder_input,decoder_hidden)
+            topv, topi = decoder_output.topk(1)
+            decoder_input = topi.squeeze().detach().view(-1,1)
+            d_out.append(topi.item())
+            if topi.item() == EOS_token:
+                break
+        d_hid = decoder_hidden
+        
+        true_corpus.append(data[-1])
+        pred_corpus.append(convert_id_list_2_sent(d_out,lang_en))
+    score = bl.corpus_bleu(pred_corpus,[true_corpus],lowercase=True)[0]
+    return score
 
 
 def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type, rand_num = 0.5):
@@ -101,7 +152,7 @@ def encode_decode(encoder,decoder,data_en,data_de,max_len,m_type, rand_num = 0.5
 
 
 def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,max_len, m_type, dataloader, en_lang,\
-                num_epochs=60, val_every = 1, train_bleu_every = 10):
+                num_epochs=60, val_every = 1, train_bleu_every = 10, val_fun = 'new'):
     best_score = 0
     best_bleu = 0
     loss_hist = {'train': [], 'validate': []}
@@ -129,8 +180,14 @@ def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,
                 decoder_i = data[1].cuda()
                                 
                 out, hidden = encode_decode(encoder,decoder,encoder_i,decoder_i,max_len,m_type)
-                loss = loss_fun(out.float(), decoder_i.long())
                 N = decoder_i.size(0)
+#                 out = out.view(-1,en_lang.n_words)
+#                 decoder_i = decoder_i.view(-1)
+                if loss_fun == 'masked_cel':
+                    loss = masked_cross_entropy(out.float(), decoder_i.long(), data[-1].cuda())
+                else:
+                    loss = loss_fun(out.float(), decoder_i.long())
+#                 loss = loss_fun(out.float(), decoder_i.long())
                 running_loss += loss.item() * N
                 
                 total += N
@@ -147,10 +204,13 @@ def train_model(encoder_optimizer,decoder_optimizer, encoder, decoder, loss_fun,
 #                 bleu_hist['train'].append(train_bleu_score)
 #                 print("Train BLEU = ", train_bleu_score)
             if epoch%val_every == 0:
-                val_loss, val_bleu_score = validation(encoder,decoder, dataloader['validate'],loss_fun, en_lang ,max_len,m_type)
-                loss_hist['validate'].append(val_loss)
+                if val_fun =='new':
+                    val_bleu_score = validation_new(encoder,decoder, dataloader['validate'], en_lang, m_type)
+                else:
+                    val_loss, val_bleu_score = validation(encoder,decoder, dataloader['validate'],loss_fun, en_lang ,max_len,m_type)
+                    loss_hist['validate'].append(val_loss)
+                    print("validation loss = ", val_loss)
                 bleu_hist['validate'].append(val_bleu_score)
-                print("validation loss = ", val_loss)
                 print("validation BLEU = ", val_bleu_score)
                 if val_bleu_score > best_bleu:
                     best_bleu = val_bleu_score
