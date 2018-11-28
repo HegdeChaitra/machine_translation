@@ -108,24 +108,24 @@ def vocab_collate_func(batch):
     vi_len = []
 
     for datum in batch:
-        en_len.append(datum[2])
-        vi_len.append(datum[3])
+        en_len.append(datum[3])
+        vi_len.append(datum[2])
     # padding
     for datum in batch:
-        if datum[2]>args.max_len:
+        if datum[2]>MAX_LEN:
             padded_vec_s1 = np.array(datum[0])[:MAX_LEN]
         else:
             padded_vec_s1 = np.pad(np.array(datum[0]),
                                 pad_width=((0,MAX_LEN - datum[2])),
                                 mode="constant", constant_values=PAD_IDX)
-        if datum[3]>args.max_len:
+        if datum[3]>MAX_LEN:
             padded_vec_s2 = np.array(datum[1])[:MAX_LEN]
         else:
             padded_vec_s2 = np.pad(np.array(datum[1]),
                                 pad_width=((0,MAX_LEN - datum[3])),
                                 mode="constant", constant_values=PAD_IDX)
-        en_data.append(padded_vec_s1)
-        vi_data.append(padded_vec_s2)
+        en_data.append(padded_vec_s2)
+        vi_data.append(padded_vec_s1)
         
     return [torch.from_numpy(np.array(vi_data)), torch.from_numpy(np.array(en_data)),
             torch.from_numpy(np.array(vi_len)), torch.from_numpy(np.array(en_len))]
@@ -139,7 +139,7 @@ if __name__=='__main__':
     print("start")
     train,val,en_lang,vi_lang = train_val_load(args.max_len, args.lang_obj, args.data_path)
 #     train = train.sample(n=train.shape[0]//4)
-#     train = train.iloc[:100]
+#     train = train.sample(n = 1000)
 #     val = val.iloc[:100]
     bs_dict = {'train':args.bs,'validate':1}
     collate_fn_dict = {'train':vocab_collate_func, 'validate':vocab_collate_func_val}
