@@ -39,32 +39,37 @@ def read_dataset(file):
     return df
 
 class Lang:
-    def __init__(self, name):
+    def __init__(self, name, minimum_count = 5):
         self.name = name
         self.word2index = {}
         self.word2count = {}
 #         self.index2word = {0: "SOS", 1: "EOS", 2:"UKN",3:"PAD"}
         self.index2word = ["SOS","EOS","UKN","PAD"]
         self.n_words = 4  # Count SOS and EOS
+        self.minimum_count = minimum_count
 
     def addSentence(self, sentence):
         for word in sentence.split(' '):
-            self.addWord(word)
+            self.addWord(word.lower())
+#             if word not in string.punctuation:
+#                 self.addWord(word.lower())
 
     def addWord(self, word):
-        if word not in self.word2index:
-            self.word2index[word] = self.n_words
+        if word not in self.word2count:
             self.word2count[word] = 1
-#             self.index2word[self.n_words] = word
-            self.index2word.append(word)
-            self.n_words += 1
         else:
             self.word2count[word] += 1
+        if self.word2count[word] >= self.minimum_count:
+            if word not in self.word2index:
+                self.word2index[word] = self.n_words
+    #             self.index2word[self.n_words] = word
+                self.index2word.append(word)
+                self.n_words += 1
             
             
 def split(df):
-    df['en_tokenized'] = df["en_data"].apply(lambda x:x.split( ))
-    df['vi_tokenized'] = df['vi_data'].apply(lambda x:x.split( ))
+    df['en_tokenized'] = df["en_data"].apply(lambda x:x.lower().split( ))
+    df['vi_tokenized'] = df['vi_data'].apply(lambda x:x.lower().split( ))
     return df
 
 
@@ -88,9 +93,11 @@ def token2index_dataset(df,en_lang,vi_lang):
 def train_val_load(MAX_LEN, old_lang_obj, path):
     en_train = read_dataset(path+"/iwslt-vi-en/train.tok.en")
     en_val = read_dataset(path+"/iwslt-vi-en/dev.tok.en")
+    en_test = read_dataset(path+"/iwslt-vi-en/test.tok.en")
     
     vi_train = read_dataset(path+"/iwslt-vi-en/train.tok.vi")
     vi_val = read_dataset(path+"/iwslt-vi-en/dev.tok.vi")
+    vi_test = read_dataset(path+"/iwslt-vi-en/test.tok.vi")
     
     train = pd.DataFrame()
     train['en_data'] = en_train['data']
@@ -99,6 +106,10 @@ def train_val_load(MAX_LEN, old_lang_obj, path):
     val = pd.DataFrame()
     val['en_data'] = en_val['data']
     val['vi_data'] = vi_val['data']
+    
+    test = pd.DataFrame()
+    test['en_data'] = en_test['data']
+    test['vi_data'] = vi_test['data']
     
     if old_lang_obj:
         with open(old_lang_obj,'rb') as f:
@@ -119,9 +130,11 @@ def train_val_load(MAX_LEN, old_lang_obj, path):
         
     train = split(train)
     val = split(val)
+    test = split(test)
     
     train = token2index_dataset(train,en_lang,vi_lang)
     val = token2index_dataset(val,en_lang,vi_lang)
+    test = token2index_dataset(test,en_lang,vi_lang)
     
     train['en_len'] = train['en_idized'].apply(lambda x: len(x))
     train['vi_len'] = train['vi_idized'].apply(lambda x:len(x))
@@ -129,10 +142,13 @@ def train_val_load(MAX_LEN, old_lang_obj, path):
     val['en_len'] = val['en_idized'].apply(lambda x: len(x))
     val['vi_len'] = val['vi_idized'].apply(lambda x: len(x))
     
+    test['en_len'] = test['en_idized'].apply(lambda x: len(x))
+    test['vi_len'] = test['vi_idized'].apply(lambda x: len(x))
+    
 #     train = train[np.logical_and(train['en_len']>=2,train['vi_len']>=2)]
 #     train = train[train['vi_len']<=MAX_LEN]
     
 #     val = val[np.logical_and(val['en_len']>=2,val['vi_len']>=2)]
 #     val = val[val['vi_len']<=MAX_LEN]
     
-    return train,val,en_lang,vi_lang
+    return train,val,test, en_lang,vi_lang
